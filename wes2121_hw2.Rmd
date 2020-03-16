@@ -191,11 +191,15 @@ cowplot::plot_grid(plotlist = DF_smooth_plots,
 
 ```
 
-Here, we see that as the chosen DF value increased, model flexibility also increased (i.e. increased "wigglyness").
+Here, we see that as the chosen DF value increased, model flexibility also increased.
 
-#### 2b. Fit a smoothing spline model using Terminal as the only predictor of Outstate for the degree of freedom obtained by generalized cross-validation.
+#### 2b. Fit a smoothing spline model using Terminal as the only predictor of Outstate for the degree of freedom obtained by generalized cross-validation, and plot the resulting fits. Describe the results obtained.
 
-```{r}
+&nbsp;
+
+Here, the `smooth.spline()` function automatically chooses DF using GCV.
+
+```{r, fig.width = 6}
 
 # Fitting smooth spline model automatically (via GCV in-built in function)
 smooth_model_gcv =
@@ -218,14 +222,16 @@ geom_line(aes(x = Terminal,
           color = 'IndianRed',
           size = 0.8) + 
 theme_bw() +
-labs(title = paste0("Figure 3: Smoothing spline model optimized via GCV (Equiv. DF = ", smooth_model_gcv$df),
+labs(title = "Figure 3: Smoothing spline model optimized via GCV",
+     subtitle = paste0("Equiv. DF = ", smooth_model_gcv$df),
      x = "% faculty with terminal degree",
      y = "Out-of-state tuition (USD)") +
-theme(plot.title = element_text(hjust = 0.5,
-                                size = 18))
+theme(plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5))
 
 ```
 
+In the model with DF optimized via generalized cross-validation, we can see that there is a good balance between model flexibility (variance) and bias.
 
 #### 3. Fit a generalized additive model (GAM) using all the predictors. Plot the results and explain your findings.
 
