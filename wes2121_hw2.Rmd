@@ -1,7 +1,7 @@
 ---
 title: "Data Science II, Homework 2"
 author: "Will Simmons"
-date: "16 March 2020"
+date: "20 March 2020"
 output: pdf_document
 editor_options: 
   chunk_output_type: console
@@ -14,6 +14,10 @@ shh <- suppressMessages
 shh(library(tidyverse))
 shh(library(readr))
 shh(library(splines))
+shh(library(caret))
+shh(library(mgcv))
+
+options(scipen = 999)
 
 ```
 
@@ -53,9 +57,12 @@ data =
 train =
   data[-125,]
 
+test =
+  data[125,]
+
 ```
 
-#### 1. Create scatter plots of response vs. predictors.  
+#### A. Create scatter plots of response vs. predictors.  
   
 &nbsp;  
   
@@ -69,6 +76,8 @@ I'll create a function to plot the list of predictors, then use `purrr:map()` to
 ```
 
 ```{r, fig.height = 16, fig.width = 12}
+set.seed(1)
+
 # Create function to map
 plot_predictors = function(predictor) {
   
@@ -100,7 +109,7 @@ all_plots =
 cowplot::plot_grid(plotlist = all_plots[1:8],
                    ncol = 2) %>% 
   patchwork::wrap_elements() +
-  ggtitle("Figure 1: Outcome (out-of-state tuition) vs. exposure scatterplots\n") +
+  ggtitle("Figure 1. Outcome (out-of-state tuition) vs. exposure scatterplots\n") +
   theme(plot.title = element_text(hjust = .5,
                                   size = 20))
 
@@ -111,7 +120,7 @@ cowplot::plot_grid(plotlist = all_plots[9:16],
 
 ```
 
-#### 2a. Fit a smoothing spline model using Terminal as the only predictor of Outstate for a range of degrees of freedom, and plot the resulting fits. Describe the results obtained.
+#### B1. Fit a smoothing spline model using Terminal as the only predictor of Outstate for a range of degrees of freedom, and plot the resulting fits. Describe the results obtained.
 
 &nbsp;
 
@@ -121,6 +130,7 @@ To illustrate fit across a range of different degrees of freedom, I will:
   * Plot each fit over the predictor-outcome scatter separately
 
 ```{r}
+set.seed(1)
 
 smooth_models = function(deg) {
   
@@ -171,6 +181,8 @@ DF_smooth_plots =
 
 ```
 
+Here, we see that as the chosen DF value increases, model flexibility also increases. In general, though, all show a general trend: as `Terminal` (% of faculty with a terminal degree) increases, so does out-of-state tuition, on average.
+
 ```{r, fig.height = 16, fig.width = 12}
 
 DF_smooth_plots[[5]] = DF_smooth_plots[[5]] + labs(y = "Out-of-state tuition (USD)")
@@ -182,7 +194,7 @@ DF_smooth_plots[[10]] = DF_smooth_plots[[10]] + labs(x = "% faculty with termina
 cowplot::plot_grid(plotlist = DF_smooth_plots,
                    ncol = 2) %>% 
   patchwork::wrap_elements() +
-  ggtitle("Figure 2: Outcome (out-of-state tuition) vs. percent faculty with terminal degree") +
+  ggtitle("Figure 2. Outcome (out-of-state tuition) vs. percent faculty with terminal degree") +
   labs(subtitle = "Fit with smoothing splines using 10 random DF values") +
   theme(plot.title = element_text(hjust = .5,
                                   size = 16),
@@ -191,15 +203,14 @@ cowplot::plot_grid(plotlist = DF_smooth_plots,
 
 ```
 
-Here, we see that as the chosen DF value increased, model flexibility also increased.
-
-#### 2b. Fit a smoothing spline model using Terminal as the only predictor of Outstate for the degree of freedom obtained by generalized cross-validation, and plot the resulting fits. Describe the results obtained.
+#### B2. Fit a smoothing spline model using Terminal as the only predictor of Outstate for the degree of freedom obtained by generalized cross-validation, and plot the resulting fits. Describe the results obtained.
 
 &nbsp;
 
 Here, the `smooth.spline()` function automatically chooses DF using GCV.
 
 ```{r, fig.width = 6}
+set.seed(1)
 
 # Fitting smooth spline model automatically (via GCV in-built in function)
 smooth_model_gcv =
@@ -213,7 +224,9 @@ smooth_gcv_predict = predict(smooth_model_gcv,
 # Creating tibble to use in plot - will help plot curve
 smooth_gcv_predict_df = tibble(pred = smooth_gcv_predict$y,
                                Terminal = terminal_grid)
+```
 
+```{r, fig.width = 6}
 # Plotting against all_plots[[12]] - raw scatter for Terminal vs. Outstate
 all_plots[[12]] +
 geom_line(aes(x = Terminal, 
@@ -222,7 +235,7 @@ geom_line(aes(x = Terminal,
           color = 'IndianRed',
           size = 0.8) + 
 theme_bw() +
-labs(title = "Figure 3: Smoothing spline model optimized via GCV",
+labs(title = "Figure 3. Smoothing spline model optimized via GCV",
      subtitle = paste0("Equiv. DF = ", smooth_model_gcv$df),
      x = "% faculty with terminal degree",
      y = "Out-of-state tuition (USD)") +
@@ -231,16 +244,175 @@ theme(plot.title = element_text(hjust = 0.5),
 
 ```
 
-In the model with DF optimized via generalized cross-validation, we can see that there is a good balance between model flexibility (variance) and bias.
+In the model with DF optimized via generalized cross-validation, we can see that there is a good balance between model flexibility (variance) and bias. Similar to the other models across a range of DFs, we see here that as `Terminal` (% of faculty with a terminal degree) increases, so does out-of-state tuition, on average.
 
-#### 3. Fit a generalized additive model (GAM) using all the predictors. Plot the results and explain your findings.
-
-&nbsp;
-
-#### 4. Fit a multivariate adaptive regression spline (MARS) model using all the predictors. Report the final model. Present the partial dependence plot of an arbitrary predictor in your final model.
+#### C. Fit a generalized additive model (GAM) using all the predictors. Plot the results and explain your findings.
 
 &nbsp;
 
-#### 5. Based on the above GAM and MARS models, predict the out-of-state tuition of Columbia University.
+```{r include = FALSE, eval = FALSE}
+# Fitting with `mgcv::gam()`
+
+# set.seed(1)
+# 
+# full_formula =
+#   reformulate(predictors, "Outstate")
+
+# gam_fit =
+#   gam(full_formula,
+#       data = train)
+
+# plot(gam_fit)
+
+# Fit using gam() or train()?
+  # With train(), lose flexibility
+  # Also, how to plot the train() model?
+# But with train, model chosen via CV?
+
+```
+
+Here, I'll fit a GAM model with `caret::train(method = "gam")`, using repeated CV to tune the model hyperparameters.
+
+```{r}
+set.seed(1)
+
+gam_tr_control = trainControl(method = "repeatedcv", number = 10, repeats = 2)#,
+                              # verboseIter = TRUE)
+
+full_formula =
+  reformulate(predictors, "Outstate")
+
+gam_fit =
+  train(full_formula,
+        data = train,
+        method = "gam",
+        tuneGrid = data.frame(method = "GCV.Cp", select = c(TRUE, FALSE)),
+        trControl = gam_tr_control)
+```
+
+We can plot the tuning parameter options (here, limited by `caret` to feature selection vs. none) against model RMSE. Our clear preference is no feature selection, since the RMSE is lower in this case.
+
+```{r}
+plot(gam_fit)
+
+# gam_fit$finalModel$fitted.values
+
+# Email Angel with gam() question above
+  # Which method?
+  # How to plot?
+  # What predictor to plot?
+```
+
+
+
+#### D. Fit a multivariate adaptive regression spline (MARS) model using all the predictors. Report the final model. Present the partial dependence plot of an arbitrary predictor in your final model.
 
 &nbsp;
+
+```{r}
+shh(library(pdp))
+shh(library(earth))
+
+set.seed(1)
+
+mars_grid = expand.grid(degree = 1:3, 
+                         nprune = 2:34)
+
+mars_control = trainControl(method = "repeatedcv", number = 10, repeats = 2)#,
+                            # verboseIter = TRUE)
+
+mars_model = train(full_formula,
+                   data = train,
+                   method = "earth",
+                   tuneGrid = mars_grid,
+                   trControl = mars_control)
+```
+
+As we can see, RMSE is minimized at `degree = ``r mars_model$bestTune$degree` and `nprune = ``r mars_model$bestTune$nprune`. The final model is presented below in a table of terms and estimated coefficients:
+
+```{r}
+ggplot(mars_model) +
+  labs(title = "Figure 4. Model RMSE by MARS Tuning Parameter Values") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "bottom") +
+  geom_vline(xintercept = 13)
+  
+```
+
+```{r}
+
+tibble(
+  variables = 
+    labels(mars_model$finalModel$coefficients)[[1]], 
+  coefficients = 
+    mars_model$finalModel$coefficients[,"y"]
+  ) %>% 
+  knitr::kable(caption = "Table 1. Final MARS Model: Terms and Est. Coefficients") %>%
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+Finally, I'll plot a partial dependence plot of an arbitrary predictor, `Accept`. This plot shows that the marginal effect of the predictor `perc.alumni`, the percent of alumni who donate. 
+
+As we can see in this partial dependence plot, the average trend of percent of alumni who donate vs. tuition is positive - i.e. as the percent of alumni who donate increases, so does out-of-state tuition, on average.
+
+```{r}
+
+partial(mars_model, 
+        pred.var = "perc.alumni", 
+        grid.resolution = 10) %>% 
+  ggplot(aes(x = perc.alumni, y = yhat)) +
+  geom_line() +
+  labs(title = "Figure 5. Partial Dependence Plot (MARS)",
+       subtitle = "Percent alumni who donate vs. predicted out-of-state tuition",
+       y = "Predicted out-of-state tuition",
+       x = "% of alumni who donate") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5))
+
+```
+
+#### E. Based on the above GAM and MARS models, predict the out-of-state tuition of Columbia University.
+
+&nbsp;
+
+```{r}
+# Filter Columbia data to only predictors
+test_pred =
+  test %>% 
+  select(
+    all_of(predictors)
+  )
+
+# Using GAM
+gam_prediction =
+  predict(gam_fit,
+          newdata = test_pred)
+# GAM PREDICTION: 17728.51
+
+# Using MARS
+mars_prediction = 
+  predict(mars_model,
+          newdata = test_pred)
+# MARS PREDICTION: 18144.31
+```
+
+The GAM model predicts out-of-state tuition for Columbia University to be **\$`r gam_prediction`**, and the MARS model predicts **\$`r mars_prediction`**.
+
+```{r, include = FALSE, eval = FALSE}
+
+# Comparing RMSE of GAM and MARS using resamples()
+
+# bwplot(
+#   resamples(
+#     list(
+#       gam = gam_fit,
+#       mars = mars_model
+#     )
+#   ), metric = "RMSE"
+# ) 
+
+```
+
